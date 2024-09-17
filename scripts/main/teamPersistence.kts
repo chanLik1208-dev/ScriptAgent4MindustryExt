@@ -1,31 +1,35 @@
-import mindustry.gen.Player
-import mindustry.net.Administration
+import mindustry.gen.*
+import mindustry.net.*
+import arc.util.*
+import mindustry.mod.Plugin
 
-val playerTeams = mutableMapOf<String, Team>()
+class TeamPersistencePlugin : Plugin() {
+    private val playerTeams = mutableMapOf<String, Team>()
 
-// 保存玩家队伍信息
-fun savePlayerTeam(player: Player) {
-    playerTeams[player.uuid()] = player.team()
-}
+    init {
+        Events.on(PlayerJoin::class.java) { event ->
+            loadPlayerTeam(event.player)
+        }
 
-// 恢复玩家队伍信息
-fun restorePlayerTeam(player: Player) {
-    player.team(playerTeams[player.uuid()] ?: Team.sharded)
-}
+        Events.on(PlayerLeave::class.java) { event ->
+            savePlayerTeam(event.player)
+        }
 
-// 监听玩家加入事件
-Events.on(PlayerJoin::class.java) { event ->
-    restorePlayerTeam(event.player)
-}
+        Events.on(ServerLoadEvent::class.java) {
+            Groups.player.each { player ->
+                loadPlayerTeam(player)
+            }
+        }
+    }
 
-// 监听玩家退出事件
-Events.on(PlayerLeave::class.java) { event ->
-    savePlayerTeam(event.player)
-}
+    private fun savePlayerTeam(player: Player) {
+        playerTeams[player.uuid()] = player.team()
+    }
 
-// 监听服务器重启事件
-Events.on(ServerLoadEvent::class.java) {
-    Groups.player.each { player ->
-        restorePlayerTeam(player)
+    private fun loadPlayerTeam(player: Player) {
+        player.team(playerTeams[player.uuid()] ?: Team.sharded)
     }
 }
+
+// 注册插件
+TeamPersistencePlugin()
